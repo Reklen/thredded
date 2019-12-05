@@ -76,6 +76,37 @@ module Thredded
       authorize_reading post
       render plain: Thredded::ContentFormatter.quote_content(post.content)
     end
+    
+      def like
+    #current_user.like!(@post)
+
+    if @like = Like.create!(liker_type: "SpreeUser", liker_id: current_user.id, likeable: @post)
+      if Socialization::ActiveRecordStores::Like.update_counter(@post, likers_count: +1)
+        render json: {
+                 type: "success",
+                 likers_count: @post.likers_count + 1,
+                 data: render_to_string(partial: "thredded/posts/likes", locals: { post: @post }),
+               }
+      end
+    end
+  end
+
+  def dislike
+    #current_user.unlike!(post)
+
+    if @dislike = Like.find_by(liker_type: "SpreeUser", liker_id: current_user.id, likeable: @post)
+      @dislike.destroy
+      if Socialization::ActiveRecordStores::Like.update_counter(@post, likers_count: -1)
+        render json: {
+                 type: "success",
+                 likers_count: @post.likers_count - 1,
+                 data: render_to_string(partial: "thredded/posts/likes", locals: { post: @post }),
+               }
+      end
+
+      #redirect_to album_path(@album), notice: "You disliked this post"
+    end
+  end
 
     private
 
