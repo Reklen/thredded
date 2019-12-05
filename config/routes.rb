@@ -84,6 +84,8 @@ Thredded::Engine.routes.draw do # rubocop:disable Metrics/BlockLength
         resource :preview, only: [:update], controller: 'post_previews'
         member do
           get 'quote'
+          post 'like'
+          post 'dislike'
         end
       end
     end
