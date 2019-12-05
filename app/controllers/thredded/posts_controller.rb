@@ -7,21 +7,21 @@ module Thredded
     include Thredded::NewPostParams
 
     helper_method :topic
-    before_action :assign_messageboard_for_actions, only: %i[mark_as_read mark_as_unread]
+    before_action :assign_messageboard_for_actions, only: %i[mark_as_read mark_as_unread like dislike]
     after_action :update_user_activity
 
-    after_action :verify_authorized
+    after_action :verify_authorized, except: [:like, :dislike]
 
     def new
       @post_form = Thredded::PostForm.new(
-        user: thredded_current_user, topic: parent_topic, post_params: new_post_params
+        user: thredded_current_user, topic: parent_topic, post_params: new_post_params,
       )
       authorize_creating @post_form.post
     end
 
     def create
       @post_form = Thredded::PostForm.new(
-        user: thredded_current_user, topic: parent_topic, post_params: new_post_params
+        user: thredded_current_user, topic: parent_topic, post_params: new_post_params,
       )
       authorize_creating @post_form.post
 
@@ -51,7 +51,7 @@ module Thredded
       post.destroy!
 
       redirect_back fallback_location: topic_url(topic),
-                    notice: I18n.t('thredded.posts.deleted_notice')
+                    notice: I18n.t("thredded.posts.deleted_notice")
     end
 
     def mark_as_read
@@ -76,33 +76,42 @@ module Thredded
       authorize_reading post
       render plain: Thredded::ContentFormatter.quote_content(post.content)
     end
-    
-      def like
-    #current_user.like!(@post)
 
-    if @like = Like.create!(liker_type: "SpreeUser", liker_id: current_user.id, likeable: post)
-      if Socialization::ActiveRecordStores::Like.update_counter(post, likers_count: +1)
-        respond_to do |format|
-          format.html { redirect_back fallback_location: post_path(post, user: thredded_current_user) }
+    def like
+
+      #authorize post, :read?
+      @topic = Thredded::Topic.friendly_find!(params[:id])
+      post_like = Thredded::Post.find(params[:id])
+
+      if @like = Like.create!(liker_type: "SpreeUser", liker_id: current_user.id, likeable_type: "ThreddedPost", likeable_id: post_like.id)
+        if Socialization::ActiveRecordStores::Like.update_counter(post_like, likers_count: +1)
+          render json: {
+            type: "success",
+            likers_count: post_like.likers_count + 1,
+            data: render_to_string(partial: "thredded/posts/likes", locals: { post: post_like }),
+          }
         end
       end
     end
-  end
 
-  def dislike
-    #current_user.unlike!(post)
+    def dislike
+      #authorize post, :read?
+      #current_user.unlike!(post)
+      @topic = Thredded::Topic.friendly_find!(params[:id])
+      post_dislike = Thredded::Post.find(params[:id])
+      if @dislike = Like.find_by(liker_type: "SpreeUser", liker_id: current_user.id, likeable_type: "ThreddedPost", likeable_id: post_dislike.id)
+        @dislike.destroy
+        if Socialization::ActiveRecordStores::Like.update_counter(post_dislike, likers_count: -1)
+          render json: {
+            type: "success",
+            likers_count: post_dislike.likers_count - 1,
+            data: render_to_string(partial: "thredded/posts/likes", locals: { post: post_dislike }),
+          }
+        end
 
-    if @dislike = Like.find_by(liker_type: "SpreeUser", liker_id: current_user.id, likeable: post)
-      @dislike.destroy
-      if Socialization::ActiveRecordStores::Like.update_counter(post, likers_count: -1)
-         respond_to do |format|
-          format.html { redirect_back fallback_location: post_path(post, user: thredded_current_user) }
-         end
+        #redirect_to album_path(@album), notice: "You disliked this post"
       end
-
-      #redirect_to album_path(@album), notice: "You disliked this post"
     end
-  end
 
     private
 
