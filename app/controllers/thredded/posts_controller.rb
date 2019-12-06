@@ -80,7 +80,7 @@ module Thredded
     def like
 
       #authorize post, :read?
-      @topic = Thredded::Topic.friendly_find!(params[:id])
+      @topic = topic
       post_like = Thredded::Post.find(params[:id])
 
       if @like = Like.create!(liker_type: "SpreeUser", liker_id: current_user.id, likeable_type: "ThreddedPost", likeable_id: post_like.id)
@@ -97,7 +97,7 @@ module Thredded
     def dislike
       #authorize post, :read?
       #current_user.unlike!(post)
-      @topic = Thredded::Topic.friendly_find!(params[:id])
+      @topic = topic
       post_dislike = Thredded::Post.find(params[:id])
       if @dislike = Like.find_by(liker_type: "SpreeUser", liker_id: current_user.id, likeable_type: "ThreddedPost", likeable_id: post_dislike.id)
         @dislike.destroy
