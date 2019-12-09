@@ -85,7 +85,6 @@ Thredded::Engine.routes.draw do # rubocop:disable Metrics/BlockLength
         member do
           get 'quote'
           post 'like'
-          post 'dislike'
         end
       end
     end

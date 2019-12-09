@@ -83,35 +83,37 @@ module Thredded
       @topic = topic
       post_like = Thredded::Post.find(params[:id])
 
-      if @like = Like.create!(liker_type: "SpreeUser", liker_id: current_user.id, likeable_type: "ThreddedPost", likeable_id: post_like.id)
-        if Socialization::ActiveRecordStores::Like.update_counter(post_like, likers_count: +1)
-          render json: {
-            type: "success",
-            likers_count: post_like.likers_count + 1,
-            data: render_to_string(partial: "thredded/posts/likes", locals: { post: post_like }),
-          }
+      if !current_user.likes?(post_like)
+        if Like.create!(liker_type: "SpreeUser", liker_id: current_user.id, likeable_type: "ThreddedPost", likeable_id: post_like.id)
+          if Socialization::ActiveRecordStores::Like.update_counter(post_like, likers_count: +1)
+            render json: {
+              type: "like",
+              likers_count: post_like.likers_count + 1
+              
+            }
+          end
+        end
+      else
+        if @dislike = Like.find_by(liker_type: "SpreeUser", liker_id: current_user.id, likeable_type: "ThreddedPost", likeable_id: post_like.id)
+          @dislike.destroy
+          if Socialization::ActiveRecordStores::Like.update_counter(post_like, likers_count: -1)
+            render json: {
+              type: "dislike",
+              likers_count: post_like.likers_count - 1
+              
+            }
+          end
         end
       end
     end
 
-    def dislike
-      #authorize post, :read?
-      #current_user.unlike!(post)
-      @topic = topic
-      post_dislike = Thredded::Post.find(params[:id])
-      if @dislike = Like.find_by(liker_type: "SpreeUser", liker_id: current_user.id, likeable_type: "ThreddedPost", likeable_id: post_dislike.id)
-        @dislike.destroy
-        if Socialization::ActiveRecordStores::Like.update_counter(post_dislike, likers_count: -1)
-          render json: {
-            type: "success",
-            likers_count: post_dislike.likers_count - 1,
-            data: render_to_string(partial: "thredded/posts/likes", locals: { post: post_dislike }),
-          }
-        end
-
-        #redirect_to album_path(@album), notice: "You disliked this post"
-      end
-    end
+    # def dislike
+    #   #authorize post, :read?
+    #   #current_user.unlike!(post)
+    #   @topic = topic
+    #   post_dislike = Thredded::Post.find(params[:id])
+      
+    # end
 
     private
 
